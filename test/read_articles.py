@@ -80,7 +80,7 @@ def donga_readArticle(url):
 
 def donga(date):
     if not date_check(date):
-        print("Wrong input in [seoul(date)]")
+        print("Wrong input in [donga(date)]")
         return None
     
     baseUrl = "http://news.donga.com"
@@ -100,8 +100,27 @@ def donga(date):
     
     return articles
 
-
-
+def joongang(date):
+    if not date_check(date):
+        print("Wrong input in [joongang(date)]")
+        return None
+    
+    baseUrl = "http://news.joins.com"
+    editorialUrl = "/opinion/editorialcolumn/list/1"
+    targetUrl = baseUrl + editorialUrl + "?filter=OnlyJoongang&date=" + date
+    
+    httpRequest = Request(targetUrl)
+    httpResponse = urlopen(httpRequest)
+    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    
+    lis = soup.find("ul", {"class" : "type_b"}).find_all("li")
+    
+    articles = []
+    for li in lis:
+        link = li.find("a", {"href" : True})
+        title = link.get_text()
+        if (not len(title) == 0 and title.startswith["[사설]"]):
+            
 
 lst = donga(yesterday)
 
