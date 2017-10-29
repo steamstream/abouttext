@@ -18,12 +18,19 @@ def date_check(date):
         return False
     return True
 
-def arrange(article):
+def arrange(article, **kwargs):
     article = article.strip()
-    article = re.sub(r"[\n\t ]+", " ", article)
-    # article = re.sub(r"[‘’]", "'", article)
-    # article = re.sub(r'[“”]', '"', article)
+    # article = re.sub(r"[\xa0\n\t ]+", " ", article)
+    article = re.sub(r"\s+", " ", article)
+    if ("replace_quotes" in kwargs) and (kwargs["replace_quotes"] == True):
+        article = re.sub(r"[‘’]", "'", article)
+        article = re.sub(r'[“”]', '"', article)
     return article
+
+def get_soup(targetUrl):
+    httpRequest = Request(targetUrl)
+    httpResponse = urlopen(httpRequest)
+    return BeautifulSoup(httpResponse.read(), "html.parser")
     
 def seoul_readArticle(url):
     baseUrl = "http://www.seoul.co.kr"
@@ -33,9 +40,7 @@ def seoul_readArticle(url):
     else:
         targetUrl = url
     
-    httpRequest = Request(targetUrl)
-    httpResponse = urlopen(httpRequest)
-    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    soup = get_soup(targetUrl)
     
     article = arrange(soup.find("div", {"class" : "v_article"}).get_text())
     return article
@@ -49,9 +54,7 @@ def seoul(date):
     editorialUrl = "/news/newsList.php?section=editorial"
     targetUrl = baseUrl + editorialUrl + "&date=" + date
     
-    httpRequest = Request(targetUrl)
-    httpResponse = urlopen(httpRequest)
-    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    soup = get_soup(targetUrl)
     
     links = soup.find("div", {"id" : "list_area"}).find_all("a", {"href" : True})
     
@@ -69,9 +72,7 @@ def donga_readArticle(url):
     else:
         targetUrl = url
     
-    httpRequest = Request(targetUrl)
-    httpResponse = urlopen(httpRequest)
-    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    soup = get_soup(targetUrl)
     
     tmp = soup.find("div", {"class" : "article_txt"}).contents
     article = "".join([i for i in tmp if isinstance(i, str)])
@@ -87,9 +88,7 @@ def donga(date):
     editorialUrl = "/Series/70040100000001"
     targetUrl = baseUrl + editorialUrl + "?ymd=" + date.replace("-", "")
     
-    httpRequest = Request(targetUrl)
-    httpResponse = urlopen(httpRequest)
-    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    soup = get_soup(targetUrl)
     
     divs = soup.find_all("div", {"class":"rightList"})
     
@@ -100,6 +99,20 @@ def donga(date):
     
     return articles
 
+def joongang_readArticle(url):
+    baseUrl = "http://news.joins.com"
+    
+    if not url.startswith(baseUrl):
+        targetUrl =  baseUrl + url
+    else:
+        targetUrl = url
+    
+    soup = get_soup(targetUrl)
+    
+    article = soup.find("div", {"id":"article_body"}).get_text()
+    article = arrange(article)
+    return article
+
 def joongang(date):
     if not date_check(date):
         print("Wrong input in [joongang(date)]")
@@ -109,9 +122,7 @@ def joongang(date):
     editorialUrl = "/opinion/editorialcolumn/list/1"
     targetUrl = baseUrl + editorialUrl + "?filter=OnlyJoongang&date=" + date
     
-    httpRequest = Request(targetUrl)
-    httpResponse = urlopen(httpRequest)
-    soup = BeautifulSoup(httpResponse.read(), "html.parser")
+    soup = get_soup(targetUrl)
     
     lis = soup.find("ul", {"class" : "type_b"}).find_all("li")
     
@@ -119,10 +130,12 @@ def joongang(date):
     for li in lis:
         link = li.find("a", {"href" : True})
         title = link.get_text()
-        if (not len(title) == 0 and title.startswith["[사설]"]):
-            
+        if (not len(title) == 0 and title.startswith("[사설]")):
+            articles.append([title, joongang_readArticle(link.attrs["href"])])
+    
+    return articles
 
-lst = donga(yesterday)
+lst = joongang(yesterday)
 
 
 
