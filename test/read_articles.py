@@ -1,13 +1,13 @@
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import datetime
+import time
 import re
 
 now = datetime.datetime.now()
-yesterday = (now + datetime.timedelta(days = -1)).strftime("%Y-%m-%d")
+yesterday = (now + datetime.timedelta(days = -2)).strftime("%Y-%m-%d")
 
-articles = {}
-
+# 날짜 형식을 확인. 2000년 이후 2020년 이전 범위만.
 def date_check(date):
     y, m, d = date.split("-")
     if not 2000 < int(y) < 2020:
@@ -18,6 +18,8 @@ def date_check(date):
         return False
     return True
 
+# article에 있는 공백문자들 제거.
+# replace_quotes = True 인 경우: 따옴표 단순화.
 def arrange(article, **kwargs):
     article = article.strip()
     # article = re.sub(r"[\xa0\n\t ]+", " ", article)
@@ -27,32 +29,34 @@ def arrange(article, **kwargs):
         article = re.sub(r'[“”]', '"', article)
     return article
 
+# url을 받아 해당하는 웹 페이지에 대한 BeautifulSoup 객체 반환
 def get_soup(targetUrl):
     httpRequest = Request(targetUrl)
     httpResponse = urlopen(httpRequest)
     return BeautifulSoup(httpResponse.read(), "html.parser")
-    
-def seoul_readArticle(url):
-    baseUrl = "http://www.seoul.co.kr"
-    
-    if not url.startswith(baseUrl):
-        targetUrl =  baseUrl + url
+
+# 내부 링크의 경우. domain이 포함 되어 있는 경우, 상대 주소인 경우 둘 다 있음. 절대 주소를 반환.
+def check_link(domain, link):
+    if not link.startswith(domain):
+        return domain + link
     else:
-        targetUrl = url
-    
+        return link
+
+def seoul_readArticle(domain, link):
+    targetUrl = check_link(domain, link)
     soup = get_soup(targetUrl)
     
     article = arrange(soup.find("div", {"class" : "v_article"}).get_text())
     return article
-    
+
 def seoul(date):
     if not date_check(date):
         print("Wrong input in [seoul(date)]")
         return None
     
-    baseUrl = "http://www.seoul.co.kr"
+    domain = "http://www.seoul.co.kr"
     editorialUrl = "/news/newsList.php?section=editorial"
-    targetUrl = baseUrl + editorialUrl + "&date=" + date
+    targetUrl = domain + editorialUrl + "&date=" + date
     
     soup = get_soup(targetUrl)
     
@@ -60,18 +64,12 @@ def seoul(date):
     
     articles = []
     for link in links:
-        articles.append([link.get_text(), seoul_readArticle(link.attrs["href"])])
+        articles.append([link.get_text(), seoul_readArticle(domain, link.attrs["href"])])
     
     return articles
 
-def donga_readArticle(url):
-    baseUrl = "http://news.donga.com"
-    
-    if not url.startswith(baseUrl):
-        targetUrl =  baseUrl + url
-    else:
-        targetUrl = url
-    
+def donga_readArticle(domain, link):
+    targetUrl = check_link(domain, link)
     soup = get_soup(targetUrl)
     
     tmp = soup.find("div", {"class" : "article_txt"}).contents
@@ -84,9 +82,9 @@ def donga(date):
         print("Wrong input in [donga(date)]")
         return None
     
-    baseUrl = "http://news.donga.com"
+    domain = "http://news.donga.com"
     editorialUrl = "/Series/70040100000001"
-    targetUrl = baseUrl + editorialUrl + "?ymd=" + date.replace("-", "")
+    targetUrl = domain + editorialUrl + "?ymd=" + date.replace("-", "")
     
     soup = get_soup(targetUrl)
     
@@ -95,18 +93,12 @@ def donga(date):
     articles = []
     for div in divs:
         link = div.find("a")
-        articles.append([link.find("span").get_text(), donga_readArticle(link.attrs["href"])])
+        articles.append([link.find("span").get_text(), donga_readArticle(domain, link.attrs["href"])])
     
     return articles
 
-def joongang_readArticle(url):
-    baseUrl = "http://news.joins.com"
-    
-    if not url.startswith(baseUrl):
-        targetUrl =  baseUrl + url
-    else:
-        targetUrl = url
-    
+def joongang_readArticle(domain, link):
+    targetUrl = check_link(domain, link)
     soup = get_soup(targetUrl)
     
     article = soup.find("div", {"id":"article_body"}).get_text()
@@ -118,9 +110,9 @@ def joongang(date):
         print("Wrong input in [joongang(date)]")
         return None
     
-    baseUrl = "http://news.joins.com"
+    domain = "http://news.joins.com"
     editorialUrl = "/opinion/editorialcolumn/list/1"
-    targetUrl = baseUrl + editorialUrl + "?filter=OnlyJoongang&date=" + date
+    targetUrl = domain + editorialUrl + "?filter=OnlyJoongang&date=" + date
     
     soup = get_soup(targetUrl)
     
@@ -131,11 +123,56 @@ def joongang(date):
         link = li.find("a", {"href" : True})
         title = link.get_text()
         if (not len(title) == 0 and title.startswith("[사설]")):
-            articles.append([title, joongang_readArticle(link.attrs["href"])])
+            articles.append([title, joongang_readArticle(domain, link.attrs["href"])])
     
     return articles
 
-lst = joongang(yesterday)
+def hani_readArticle(domain, link):
+    targetUrl = check_link(domain, link)
+    soup = get_soup(targetUrl)
+    
+    article = soup.find("div", {"class":"text"}).get_text()
+    article = arrange(article)
+    
+    time.sleep(600) # robots.txt 에 있는 Crawl-delay: 600 에 의하여.
+    return article
+
+def hani(date):
+    if not date_check(date):
+        print("Wrong input in [hani(date)]")
+        return None
+    
+    page_counter = 1
+    stop_flag = False
+    
+    articles = []
+    while (not stop_flag) and (page_counter < 100):
+        domain = "http://www.hani.co.kr"
+        editorialUrl = "/arti/opinion/editorial"
+        targetUrl = domain + editorialUrl + "/list{}.html".format(page_counter)
+        
+        soup = get_soup(targetUrl)
+        
+        divs = soup.find("div", {"class":"section-list-area"}).find_all("div", {"article-area"})
+        
+        for div in divs:
+            article_date = div.find("span", {"class" : "date"}).get_text().split()[0]
+            links = div.find_all("a", {"href":True})
+            for link in links:
+                title = link.get_text()
+                if ("사설]" in title) and (date == article_date):
+                    articles.append([title, hani_readArticle(domain, link.attrs["href"])])
+            
+            # 찾고자 하는 날짜 까지 왔으니, 그만 돌아도 된다. 
+            if date > article_date:
+                stop_flag = True
+        
+        page_counter += 1
+        time.sleep(600) # robots.txt 에 있는 Crawl-delay: 600 에 의하여.
+    
+    return articles
+
+lst = hani("2017-10-29")
 
 
 
