@@ -224,12 +224,11 @@ def segye_readArticle(domain, link):
     article = "".join([i for i in tmp if isinstance(i, str)])
     article = arrange(article)
     
-    time.sleep(600) # robots.txt 에 있는 Crawl-delay: 600 에 의하여.
     return article
 # 미완
 def segye(date):
     if not date_check(date):
-        print("Wrong input in [hani(date)]")
+        print("Wrong input in [segye(date)]")
         return None
     
     page_counter = 1
@@ -246,42 +245,19 @@ def segye(date):
         divs = soup.find("div", {"class":"newslist_area"}).find_all("div", {"area_box"})
         
         for div in divs:
-            article_date = div.find("span", {"class" : "date"}).get_text().split()[0]
-            links = div.find_all("a", {"href":True})
-            for link in links:
-                title = link.get_text()
-                if ("사설]" in title) and (date == article_date):
-                    articles.append([title, hani_readArticle(domain, link.attrs["href"])])
-            
+            article_date = div.find("span", {"class" : "date"}).get_text().replace(".", "-")
+            link = div.find("a", {"href":True})
+            title = link.get_text()
+            if ("사설]" in title) and (date == article_date):
+                print(title)
+                
+                #articles.append([title, hani_readArticle(domain, link.attrs["href"])])
             # 찾고자 하는 날짜 까지 왔으니, 그만 돌아도 된다. 
             if date > article_date:
                 stop_flag = True
         
         page_counter += 1
-        time.sleep(600) # robots.txt 에 있는 Crawl-delay: 600 에 의하여.
     
     return articles
 
 lst = donga("2017-10-25")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
