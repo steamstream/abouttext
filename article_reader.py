@@ -117,6 +117,57 @@ def joongang(date_list):
     
     return articles
 
+# 한국일보는 다른 신문이랑 좀 다름. "[사설]" 로 검색한 결과에서 찾아나감.
+def hankook_readArticle(link):
+    targetUrl = link
+    soup = get_soup(targetUrl)
+    
+    temp_article_date = soup.find("div", {"class":"author"}).find("div", {"class":"writeOption"}).get_text()
+    article_date = re.findall(r"\d{4}.\d{2}.\d{2}", temp_article_date)[0].replace(".", "-")
+    
+    article = soup.find("article", {"class":"newsStoryTxt", "id":"article-body"}).get_text()
+    article = arrange(article)
+    
+    return (article_date, article)
+
+def hankook(date_list):
+    articles = []
+    
+    for date in date_list:
+        if not date_check(date):
+            print("Wrong input in [munhwa(date)]")
+            return None
+    
+    page_counter = 1
+    stop_flag = False
+    
+    start_from = min(date_list)
+    while (not stop_flag) and (page_counter < 100):
+        targetUrl = "http://search.hankookilbo.com/?ssort=0&page={}&sword=[%EC%82%AC%EC%84%A4]".format(page_counter)
+        
+        soup = get_soup(targetUrl)
+        
+        links = soup.find("div",{"class":"dw_news"}).find_all("a", {"onclick":True})
+        
+        for link in links:
+            title = link.get_text()
+            addr = re.findall(r"baro_view_src\('(.*)'\); ", link.attrs["onclick"])[0]
+            print(addr)
+            if ("사설" in title):
+                (article_date, article) = hankook_readArticle(addr)
+                if (article_date in date_list):
+                    articles.append([10, article_date, title, article])
+            else:
+                continue
+            
+            # 찾고자 하는 날짜 까지 왔으니, 그만 돌아도 된다. 
+            if start_from > article_date:
+                stop_flag = True
+        
+        page_counter += 1
+    
+    return articles
+
 def seoul_readArticle(domain, link):
     targetUrl = check_link(domain, link)
     soup = get_soup(targetUrl)
@@ -311,53 +362,3 @@ def munhwa(date_list):
     
     return articles
 
-# 한국일보는 다른 신문이랑 좀 다름. "[사설]" 로 검색한 결과에서 찾아나감.
-def hankookilbo_readArticle(link):
-    targetUrl = link
-    soup = get_soup(targetUrl)
-    
-    temp_article_date = soup.find("div", {"class":"author"}).find("div", {"class":"writeOption"}).get_text()
-    article_date = re.findall(r"\d{4}.\d{2}.\d{2}", temp_article_date)[0].replace(".", "-")
-    
-    article = soup.find("article", {"class":"newsStoryTxt", "id":"article-body"}).get_text()
-    article = arrange(article)
-    
-    return (article_date, article)
-
-def hankookilbo(date_list):
-    articles = []
-    
-    for date in date_list:
-        if not date_check(date):
-            print("Wrong input in [munhwa(date)]")
-            return None
-    
-    page_counter = 1
-    stop_flag = False
-    
-    start_from = min(date_list)
-    while (not stop_flag) and (page_counter < 100):
-        targetUrl = "http://search.hankookilbo.com/?ssort=0&page={}&sword=[%EC%82%AC%EC%84%A4]".format(page_counter)
-        
-        soup = get_soup(targetUrl)
-        
-        links = soup.find("div",{"class":"dw_news"}).find_all("a", {"onclick":True})
-        
-        for link in links:
-            title = link.get_text()
-            addr = re.findall(r"baro_view_src\('(.*)'\); ", link.attrs["onclick"])[0]
-            print(addr)
-            if ("사설" in title):
-                (article_date, article) = hankookilbo_readArticle(addr)
-                if (article_date in date_list):
-                    articles.append([10, article_date, title, article])
-            else:
-                continue
-            
-            # 찾고자 하는 날짜 까지 왔으니, 그만 돌아도 된다. 
-            if start_from > article_date:
-                stop_flag = True
-        
-        page_counter += 1
-    
-    return articles
