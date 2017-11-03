@@ -17,7 +17,7 @@ cur.execute("USE articles")
 # Example4: scrap_and_save.py 2 2017-10-25 2017-10-31 ==> 동아일보, 2017년 10월 25일 부터 2017년 10월 31일 까지 사설
 def main(argv):
     (co_id, start_date, end_date) = assignment(argv)
-    print("co_id:", co_id)
+    
     date_list = []
     # 시작 날짜 부터 끝 날짜 까지 %Y-%m-%d 형식으로 date_list에 추가
     for i in range((end_date - start_date + datetime.timedelta(days = 1)).days):
@@ -37,7 +37,7 @@ def main(argv):
                 articles = eval("ar.{}(date_list)".format(newspapers[co_id]))
                 insert_articles(articles)
             else:
-                print("scrapping denied. co_id: " + co_id)
+                print("scrapping denied. co_id:", co_id)
         
     finally:
         cur.close()

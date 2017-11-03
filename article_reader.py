@@ -45,7 +45,7 @@ def check_link(domain, link):
         return link
 
 def logger(articles):
-    with open("reader.log", "at") as fout:
+    with open("reader.log", "at", encoding = "utf-8") as fout:
         for article in articles:
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             newspaper_id = article[0]
@@ -152,11 +152,11 @@ def hankook(date_list):
         for link in links:
             title = link.get_text()
             addr = re.findall(r"baro_view_src\('(.*)'\); ", link.attrs["onclick"])[0]
-            print(addr)
+            
             if ("사설" in title):
                 (article_date, article) = hankook_readArticle(addr)
                 if (article_date in date_list):
-                    articles.append([10, article_date, title, article])
+                    articles.append([4, article_date, title, article])
             else:
                 continue
             
